@@ -1,6 +1,7 @@
 # Copyright © 2023 Apple Inc.
 
 from dataclasses import dataclass
+import inspect
 from pathlib import Path
 from typing import Dict, List, Optional, Tuple, Union
 
@@ -10,6 +11,8 @@ import numpy as np
 import utils
 from huggingface_hub import snapshot_download
 from mlx.utils import tree_flatten, tree_unflatten
+
+from rich import print
 
 
 @dataclass
@@ -33,10 +36,12 @@ class ModelArgs:
         if self.rope_scaling:
             required_keys = {"factor", "type"}
             if not all(key in self.rope_scaling for key in required_keys):
-                raise ValueError(f"rope_scaling must contain keys {required_keys}")
+                raise ValueError(
+                    f"rope_scaling must contain keys {required_keys}")
 
             if self.rope_scaling["type"] != "linear":
-                raise ValueError("rope_scaling 'type' currently only supports 'linear'")
+                raise ValueError(
+                    "rope_scaling 'type' currently only supports 'linear'")
 
     @classmethod
     def from_dict(cls, params):
@@ -105,7 +110,8 @@ class Attention(nn.Module):
         # Prepare the queries, keys and values for the attention computation
         queries = queries.reshape(B, L, self.n_heads, -1).transpose(0, 2, 1, 3)
         keys = keys.reshape(B, L, self.n_kv_heads, -1).transpose(0, 2, 1, 3)
-        values = values.reshape(B, L, self.n_kv_heads, -1).transpose(0, 2, 1, 3)
+        values = values.reshape(
+            B, L, self.n_kv_heads, -1).transpose(0, 2, 1, 3)
 
         if self.repeats > 1:
             keys = mx.repeat(keys, self.repeats, axis=1)
@@ -124,7 +130,8 @@ class Attention(nn.Module):
         scores = (queries * self.scale) @ keys.transpose(0, 1, 3, 2)
         if mask is not None:
             scores += mask
-        scores = mx.softmax(scores.astype(mx.float32), axis=-1).astype(scores.dtype)
+        scores = mx.softmax(scores.astype(mx.float32),
+                            axis=-1).astype(scores.dtype)
         output = (scores @ values).transpose(0, 2, 1, 3).reshape(B, L, -1)
         return self.o_proj(output), (keys, values)
 
@@ -148,7 +155,8 @@ class TransformerBlock(nn.Module):
         self.self_attn = Attention(args)
         self.mlp = MLP(args.hidden_size, args.intermediate_size)
         self.input_layernorm = RMSNorm(args.hidden_size, eps=args.rms_norm_eps)
-        self.post_attention_layernorm = RMSNorm(args.hidden_size, eps=args.rms_norm_eps)
+        self.post_attention_layernorm = RMSNorm(
+            args.hidden_size, eps=args.rms_norm_eps)
         self.args = args
 
     def __call__(
@@ -183,10 +191,12 @@ class LlamaModel(nn.Module):
         cache=None,
     ):
         h = self.embed_tokens(inputs)
+        print(f"h: {h[0:20]}")
 
         mask = None
         if h.shape[1] > 1:
-            mask = nn.MultiHeadAttention.create_additive_causal_mask(h.shape[1])
+            mask = nn.MultiHeadAttention.create_additive_causal_mask(
+                h.shape[1])
             mask = mask.astype(h.dtype)
 
         if cache is None:
@@ -225,7 +235,8 @@ def get_config(metadata: dict):
         "rope_theta": metadata["llama.rope.freq_base"],
         "rope_traditional": True,
     }
-    output = {k: v.item() if isinstance(v, mx.array) else v for k, v in output.items()}
+    output = {k: v.item() if isinstance(v, mx.array)
+              else v for k, v in output.items()}
     return output
 
 

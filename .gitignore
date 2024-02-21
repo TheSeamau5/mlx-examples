@@ -134,3 +134,5 @@ dmypy.json
 
 # .DS_Store files
 .DS_Store
+llms/gguf_llm/mistral-7b-instruct-v0.2.Q8_0.gguf
+llms/mistral/mistral-7B-v0.1.tar
